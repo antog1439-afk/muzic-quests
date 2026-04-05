@@ -62,50 +62,107 @@
             font-weight: 700;
             margin: 20px 0;
             line-height: 1.3;
+            word-break: break-word;
         }
         
-        .options {
-            display: grid;
+        .game-options {
+            display: flex;
+            flex-direction: column;
             gap: 12px;
             margin: 20px 0;
         }
         
-        .option-btn {
-            padding: 16px;
-            background: var(--tg-theme-button-bg-color, #e9ecef);
-            border: none;
-            border-radius: 16px;
-            font-size: 16px;
+        .game-option {
+            padding: 14px;
+            border-radius: 14px;
+            background: var(--tg-theme-bg-color, #f0f2f5);
+            border: 2px solid transparent;
             cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
             transition: all 0.2s;
         }
         
-        .option-btn:hover {
-            background: var(--tg-theme-button-color, #007aff);
+        .game-option:active {
+            transform: scale(0.98);
+        }
+        
+        .game-option.correct {
+            background: #28a745;
             color: white;
         }
         
-        .result-message {
-            margin: 20px 0;
-            padding: 16px;
+        .game-option.wrong {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .game-option.disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        
+        .game-result {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .game-result h3 {
+            font-size: 32px;
+            margin-bottom: 16px;
+        }
+        
+        .result-stats {
+            background: var(--tg-theme-bg-color, #f0f2f5);
             border-radius: 16px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .result-stats div {
+            margin: 8px 0;
+            font-size: 16px;
+        }
+        
+        .restart-btn {
+            background: var(--tg-theme-button-color, #2481cc);
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 16px;
+            font-size: 18px;
             font-weight: 600;
+            width: 100%;
+            cursor: pointer;
+            margin-top: 20px;
         }
         
-        .correct {
-            background: #d4edda;
-            color: #155724;
+        .close-btn {
+            background: transparent;
+            border: 1px solid var(--tg-theme-hint-color, #ddd);
+            color: var(--tg-theme-text-color, #000);
+            margin-top: 12px;
+            width: 100%;
+            padding: 14px;
+            border-radius: 16px;
+            font-size: 16px;
+            cursor: pointer;
         }
         
-        .incorrect {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        
-        .controls {
+        .user-info {
             display: flex;
             justify-content: space-between;
             margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid var(--tg-theme-hint-color, #e9ecef);
+            font-size: 13px;
+            color: var(--tg-theme-hint-color, #6c757d);
+        }
+        
+        @media (max-width: 480px) {
+            body { padding: 12px; }
+            .track-name { font-size: 22px; }
+            .game-option { padding: 12px; font-size: 14px; }
         }
     </style>
 </head>
@@ -113,107 +170,266 @@
     <div class="container">
         <div class="game-card">
             <div class="game-header">
-                <h1>🎮 Угадай трек</h1>
-                <div class="game-subtitle">Угадайте исполнителя по фрагменту песни</div>
+                <h1>🎵 Угадай трек</h1>
+                <div class="game-subtitle">Кто исполняет эту песню?</div>
             </div>
-
-            <div class="game-score">Счёт: <span id="score">0</span></div>
-
-            <div class="track-name" id="track-info">Загрузка...</div>
-
-            <audio id="audio-player" controls style="width: 100%; margin: 20px 0;">
-                Ваш браузер не поддерживает аудио.
-            </audio>
-
-            <div class="options" id="options-container">
-                <!-- Варианты ответов будут генерироваться здесь -->
-            </div>
-
-            <div class="result-message" id="result-message" style="display: none;"></div>
-
-            <div class="controls">
-                <button class="option-btn" id="skip-btn">Пропустить</button>
-                <button class="option-btn" id="new-game-btn">Новая игра</button>
+            
+            <div id="gameContent"></div>
+            
+            <div class="user-info">
+                <span>👤 <span id="userName">Загрузка...</span></span>
+                <span>🎮 <span id="gamesPlayed">0</span> игр</span>
             </div>
         </div>
+        
+        <button onclick="closeApp()" class="close-btn">❌ Закрыть</button>
     </div>
 
     <script>
-        // Инициализация Telegram Web App
         const tg = window.Telegram.WebApp;
+        tg.ready();
         tg.expand();
-
-        // Элементы DOM
-        const scoreEl = document.getElementById('score');
-        const trackInfoEl = document.getElementById('track-info');
-        const audioPlayer = document.getElementById('audio-player');
-        const optionsContainer = document.getElementById('options-container');
-        const resultMessageEl = document.getElementById('result-message');
-        const skipBtn = document.getElementById('skip-btn');
-        const newGameBtn = document.getElementById('new-game-btn');
-
-        // Данные игры
-        let currentTrack = null;
-        let score = 0;
-
-        // Заглушка для получения трека (замените на реальный API)
-        function getRandomTrack() {
+        
+        const user = tg.initDataUnsafe?.user;
+        if (user) {
+            document.getElementById('userName').textContent = user.first_name || 'Гость';
+        } else {
+            document.getElementById('userName').textContent = 'Гость';
+        }
+        
+        // ========== ВСЕ ИСПОЛНИТЕЛИ ==========
+        const allArtists = [
+            "Асия", "Мари Краймбрери", "INSTASAMKA", "Мэйби Бэйби", "Дора",
+            "NЮ", "M.Hustler", "Баста", "Anna Asti", "Король и Шут",
+            "Ваня Дмитриенко", "Эндшпиль", "МАСАN", "Aarne", "OG Buda",
+            "Платина", "Yanix", "ЛСП", "T-Fest", "FEDUK"
+        ];
+        
+        // ========== РЕАЛЬНЫЕ ТРЕКИ ИЗ ЯНДЕКС МУЗЫКИ ==========
+        const tracksDatabase = [
+            // === Асия (реальные треки из плейлиста) ===
+            { track: "Останься", artist: "Асия" },  // с NЮ [citation:1]
+            { track: "Твой поцелуй", artist: "Асия" },  // с NЮ [citation:1]
+            
+            // === Мари Краймбрери (из плейлиста "Лучшее: Мари Краймбрери") ===
+            { track: "Случилась осень", artist: "Мари Краймбрери" },  // [citation:2]
+            { track: "Она опять разденется", artist: "Мари Краймбрери" },  // [citation:2]
+            { track: "Иначе всё это зря", artist: "Мари Краймбрери" },  // [citation:2]
+            { track: "Океан", artist: "Мари Краймбрери" },  // [citation:2]
+            { track: "Пряталась в ванной", artist: "Мари Краймбрери" },  // [citation:2]
+            { track: "Мне так хорошо", artist: "Мари Краймбрери" },  // [citation:2]
+            { track: "По городам", artist: "Мари Краймбрери" },  // [citation:2]
+            
+            // === INSTASAMKA ===
+            { track: "За деньги да", artist: "INSTASAMKA" },  // [citation:3]
+            { track: "Волосы назад", artist: "INSTASAMKA" },  // [citation:3]
+            { track: "Отключаю телефон", artist: "INSTASAMKA" },  // [citation:3]
+            
+            // === Мэйби Бэйби ===
+            { track: "Силиконовый гном", artist: "Мэйби Бэйби" },  // [citation:4][citation:9]
+            { track: "Неблагополучная семья", artist: "Мэйби Бэйби" },  // [citation:4][citation:9]
+            
+            // === Дора (из плейлиста "Лучшее: Дора") ===
+            { track: "Втюрилась", artist: "Дора" },  // [citation:5][citation:10]
+            { track: "Дора дура", artist: "Дора" },  // [citation:10]
+            { track: "Барбисайз", artist: "Дора" },  // [citation:5][citation:10]
+            { track: "Младшая сестра", artist: "Дора" },  // [citation:5][citation:10]
+            { track: "Дорадура", artist: "Дора" },  // [citation:5][citation:10]
+            { track: "Трезво", artist: "Дора" },  // [citation:10]
+            { track: "Капли", artist: "Дора" },  // [citation:10]
+            { track: "Пошлю его на...", artist: "Дора" },  // [citation:10]
+            { track: "Нет тебя", artist: "Дора" },  // [citation:5][citation:10]
+            { track: "Loverboy", artist: "Дора" },  // [citation:5][citation:10]
+            
+            // === NЮ ===
+            { track: "Там, за облаками", artist: "NЮ" },  // [citation:1]
+            { track: "Никто", artist: "NЮ" },  // [citation:1]
+            { track: "Некуда бежать", artist: "NЮ" },  // [citation:1]
+            { track: "Я тебя обидел", artist: "NЮ" },  // [citation:1]
+            { track: "Если сгорим", artist: "NЮ" },  // [citation:1]
+            { track: "Вороны", artist: "NЮ" },  // [citation:1]
+            
+            // === M.Hustler ===
+            { track: "Успей вернуться", artist: "M.Hustler" },  // [citation:7]
+            { track: "На каблучках", artist: "M.Hustler" },  // [citation:7]
+            { track: "Он тоже любит дым", artist: "M.Hustler" },  // [citation:7]
+            { track: "Fly Away", artist: "M.Hustler" },  // [citation:7]
+            
+            // === Другие популярные исполнители ===
+            { track: "Кукла колдуна", artist: "Король и Шут" },  // [citation:8]
+            { track: "Шелк", artist: "Ваня Дмитриенко" },  // [citation:9]
+            { track: "10", artist: "Эндшпиль" },  // [citation:9]
+            { track: "Ножевой", artist: "A.V.G" },  // [citation:8]
+            { track: "Где прошла ты", artist: "Кравц" }  // [citation:8]
+        ];
+        
+        // ========== ИГРА ==========
+        let gameQuestions = [];
+        let currentQuestionIndex = 0;
+        let gameScore = 0;
+        let gameActive = true;
+        let gameStats = {
+            gamesPlayed: 0,
+            totalScore: 0,
+            bestScore: 0
+        };
+        
+        function loadGameStats() {
+            const saved = localStorage.getItem('music_bot_game_stats');
+            if (saved) {
+                gameStats = JSON.parse(saved);
+                document.getElementById('gamesPlayed').textContent = gameStats.gamesPlayed;
+            }
+        }
+        
+        function saveGameStats() {
+            localStorage.setItem('music_bot_game_stats', JSON.stringify(gameStats));
+            document.getElementById('gamesPlayed').textContent = gameStats.gamesPlayed;
+        }
+        
+        function generateRandomQuestion() {
+            const randomIndex = Math.floor(Math.random() * tracksDatabase.length);
+            const correctTrack = tracksDatabase[randomIndex];
+            const correctArtist = correctTrack.artist;
+            
+            let wrongOptions = [];
+            const otherArtists = allArtists.filter(a => a !== correctArtist);
+            
+            for (let i = otherArtists.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [otherArtists[i], otherArtists[j]] = [otherArtists[j], otherArtists[i]];
+            }
+            
+            wrongOptions = otherArtists.slice(0, 3);
+            const allOptions = [correctArtist, ...wrongOptions];
+            
+            for (let i = allOptions.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [allOptions[i], allOptions[j]] = [allOptions[j], allOptions[i]];
+            }
+            
             return {
-                title: "Believer",
-                artist: "Imagine Dragons",
-                audioUrl: "https://example.com/track.mp3",
-                options: ["Imagine Dragons", "Linkin Park", "Coldplay", "OneRepublic"]
+                track: correctTrack.track,
+                correct: correctArtist,
+                options: allOptions
             };
         }
-
-        // Запуск нового раунда
-        function startNewRound() {
-            currentTrack = getRandomTrack();
-            trackInfoEl.textContent = `"${currentTrack.title}"`;
-            audioPlayer.src = currentTrack.audioUrl;
-
-            // Очищаем предыдущие варианты
-            optionsContainer.innerHTML = '';
-            resultMessageEl.style.display = 'none';
-
-            // Создаём кнопки с вариантами
-            currentTrack.options.forEach(option => {
-                const btn = document.createElement('button');
-                btn.className = 'option-btn';
-                btn.textContent = option;
-                btn.addEventListener('click', () => checkAnswer(option));
-                optionsContainer.appendChild(btn);
-            });
-        }
-
-        // Проверка ответа
-        function checkAnswer(selectedOption) {
-            const isCorrect = selectedOption === currentTrack.artist;
-
-            if (isCorrect) {
-                score++;
-                scoreEl.textContent = score;
-                resultMessageEl.textContent = "✅ Правильно! + 1 очко";
-                resultMessageEl.className = "result-message correct";
-            } else {
-                resultMessageEl.textContent = `❌ Неверно! Правильный ответ: ${currentTrack.artist}`;
-                resultMessageEl.className = "result-message incorrect";
+        
+        function startGame() {
+            gameQuestions = [];
+            for (let i = 0; i < 10; i++) {
+                gameQuestions.push(generateRandomQuestion());
             }
-
-            resultMessageEl.style.display = 'block';
-            setTimeout(startNewRound, 2000); // Следующий раунд через 2 секунды
+            
+            currentQuestionIndex = 0;
+            gameScore = 0;
+            gameActive = true;
+            
+            updateGameScore();
+            showQuestion();
         }
-
-        // Обработчики кнопок
-        skipBtn.addEventListener('click', startNewRound);
-        newGameBtn.addEventListener('click', () => {
-            score = 0;
-            scoreEl.textContent = score;
-            startNewRound();
-        });
-
-        // Запуск игры при загрузке
-        window.addEventListener('load', startNewRound);
+        
+        function updateGameScore() {
+            const scoreDiv = document.getElementById('gameScore');
+            if (scoreDiv) {
+                scoreDiv.innerHTML = `🎯 Счёт: ${gameScore} / ${gameQuestions.length}`;
+            }
+        }
+        
+        function showQuestion() {
+            const gameQuestionDiv = document.getElementById('gameContent');
+            
+            if (currentQuestionIndex >= gameQuestions.length) {
+                const percent = Math.round((gameScore / gameQuestions.length) * 100);
+                gameStats.gamesPlayed++;
+                gameStats.totalScore += gameScore;
+                if (gameScore > gameStats.bestScore) {
+                    gameStats.bestScore = gameScore;
+                }
+                saveGameStats();
+                
+                gameQuestionDiv.innerHTML = `
+                    <div class="game-result">
+                        <h3>🎉 ИГРА ЗАКОНЧЕНА! 🎉</h3>
+                        <div class="result-stats">
+                            <div>🏆 Результат: ${gameScore} / ${gameQuestions.length}</div>
+                            <div>📊 Процент правильных: ${percent}%</div>
+                            <div>⭐ Лучший результат: ${gameStats.bestScore} / ${gameQuestions.length}</div>
+                            <div>🎮 Сыграно игр: ${gameStats.gamesPlayed}</div>
+                        </div>
+                        <button class="restart-btn" onclick="startGame()">🔄 Сыграть ещё раз</button>
+                    </div>
+                `;
+                return;
+            }
+            
+            const question = gameQuestions[currentQuestionIndex];
+            
+            let optionsHtml = '';
+            for (let i = 0; i < question.options.length; i++) {
+                optionsHtml += `<div class="game-option" onclick="checkAnswer('${escapeHtml(question.options[i])}', '${escapeHtml(question.correct)}')">${escapeHtml(question.options[i])}</div>`;
+            }
+            
+            gameQuestionDiv.innerHTML = `
+                <div class="game-score" id="gameScore">🎯 Счёт: ${gameScore} / ${gameQuestions.length}</div>
+                <div class="track-name">🎵 "${escapeHtml(question.track)}"</div>
+                <div class="game-options" id="gameOptions">
+                    ${optionsHtml}
+                </div>
+            `;
+        }
+        
+        function checkAnswer(selected, correct) {
+            if (!gameActive) return;
+            
+            const optionsDiv = document.getElementById('gameOptions');
+            if (!optionsDiv) return;
+            
+            const options = optionsDiv.querySelectorAll('.game-option');
+            
+            gameActive = false;
+            
+            for (let option of options) {
+                if (option.textContent === correct) {
+                    option.classList.add('correct');
+                }
+                if (option.textContent === selected && selected !== correct) {
+                    option.classList.add('wrong');
+                }
+                option.style.pointerEvents = 'none';
+            }
+            
+            if (selected === correct) {
+                gameScore++;
+                updateGameScore();
+                if (tg.HapticFeedback) {
+                    tg.HapticFeedback.notificationOccurred('success');
+                }
+            } else {
+                if (tg.HapticFeedback) {
+                    tg.HapticFeedback.notificationOccurred('error');
+                }
+            }
+            
+            setTimeout(() => {
+                currentQuestionIndex++;
+                gameActive = true;
+                showQuestion();
+            }, 1000);
+        }
+        
+        function closeApp() {
+            tg.close();
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        loadGameStats();
+        startGame();
     </script>
 </body>
 </html>

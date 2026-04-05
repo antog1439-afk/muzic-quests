@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Music Bot - Поиск исполнителя</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--tg-theme-bg-color, #f8f9fa);
+            color: var(--tg-theme-text-color, #000);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: var(--tg-theme-secondary-bg-color, #ffffff);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+            border-radius: 14px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .tab.active {
+            background: var(--tg-theme-button-color, #2481cc);
+            color: white;
+        }
+        
+        .search-box {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 14px 16px;
+            border: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+            border-radius: 14px;
+            font-size: 16px;
+            background: var(--tg-theme-bg-color, #fff);
+            color: var(--tg-theme-text-color, #000);
+            outline: none;
+        }
+        
+        .search-input:focus {
+            border-color: var(--tg-theme-button-color, #2481cc);
+        }
+        
+        .search-btn {
+            background: var(--tg-theme-button-color, #2481cc);
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .result-card {
+            background: var(--tg-theme-bg-color, #f0f2f5);
+            border-radius: 16px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+        
+        .artist-name {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .platform-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        .platform-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 12px 20px;
+            border-radius: 14px;
+            text-align: center;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            font-size: 16px;
+            color: white;
+            transition: opacity 0.2s;
+        }
+        
+        .platform-btn:active {
+            opacity: 0.8;
+        }
+        
+        .yandex-btn { background: #ffcc00; color: #000; }
+        .youtube-btn { background: #ff0000; }
+        .concert-btn { background: #28a745; }
+        .afisha-btn { background: #ff6b6b; }
+        .bot-concert-btn { background: #fd79a8; }
+        
+        .info-text {
+            font-size: 14px;
+            color: var(--tg-theme-hint-color, #6c757d);
+            margin-top: 12px;
+            text-align: center;
+        }
+        
+        .user-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--tg-theme-hint-color, #e9ecef);
+            font-size: 13px;
+            color: var(--tg-theme-hint-color, #6c757d);
+        }
+        
+        button {
+            background: var(--tg-theme-button-color, #2481cc);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            width: 100%;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--tg-theme-hint-color, #6c757d);
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 12px;
+            border: 3px solid var(--tg-theme-secondary-bg-color, #f0f0f0);
+            border-top-color: var(--tg-theme-button-color, #2481cc);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .empty-favorites {
+            text-align: center;
+            padding: 40px;
+            color: var(--tg-theme-hint-color, #6c757d);
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .section-title {
+            font-size: 13px;
+            font-weight: 600;
+            margin: 12px 0 8px 0;
+            color: var(--tg-theme-hint-color, #6c757d);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .popular-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 12px;
+        }
+        
+        .popular-tag {
+            background: var(--tg-theme-button-color, #2481cc);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        
+        .popular-tag:active {
+            opacity: 0.8;
+        }
+        
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: var(--tg-theme-bg-color, #f0f2f5);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+        
+        .delete-history {
+            background: none;
+            border: none;
+            color: #dc3545;
+            font-size: 18px;
+            cursor: pointer;
+            width: auto;
+            margin: 0;
+            padding: 0 8px;
+        }
+        
+        .state-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .state-idle { background: #6c757d; }
+        .state-searching { background: #ffc107; animation: pulse 1s infinite; }
+        .state-results { background: #28a745; }
+        
+        @keyframes pulse {
+            0% { opacity: 0.4; }
+            50% { opacity: 1; }
+            100% { opacity: 0.4; }
+        }
+        
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            padding: 8px 12px;
+            background: var(--tg-theme-bg-color, #f0f2f5);
+            border-radius: 12px;
+            font-size: 13px;
+        }
+        
+        .current-state {
+            display: flex;
+            align-items: center;
+        }
+        
+        /* Стили для игры */
+        .game-card {
+            background: var(--tg-theme-bg-color, #f0f2f5);
+            border-radius: 20px;
+            padding: 24px;
+            text-align: center;
+        }
+        
+        .track-name {
+            font-size: 24px;
+            font-weight: 700;
+            margin: 20px 0;
+            line-height: 1.3;
+        }
+        
+        .game-options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 20px 0;
+        }
+        
+        .game-option {
+            padding: 14px;
+            border-radius: 14px;
+            background: var(--tg-theme-secondary-bg-color, #fff);
+            border: 1px solid var(--tg-theme-hint-color, #ddd);
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .game-option:hover {
+            background: var(--tg-theme-button-color, #2481cc);
+            color: white;
+        }
+        
+        .game-option.correct {
+            background: #28a745;
+            color: white;
+            border-color: #28a745;
+        }
+        
+        .game-option.wrong {
+            background: #dc3545;
+            color: white;
+            border-color: #dc3545;
+        }
+        
+        .game-option.disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        
+        .game-score {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        
+        .game-result {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .game-result h3 {
+            font-size: 28px;
+            margin-bottom: 16px;
+        }
+        
+        /* Админ-панель */
+        .admin-panel {
+            margin-top: 20px;
+            padding: 16px;
+            background: var(--tg-theme-bg-color, #f0f2f5);
+            border-radius: 16px;
+            border: 1px solid var(--tg-theme-hint-color, #ddd);
+        }
+        
+        .admin-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--tg-theme-hint-color, #6c757d);
+        }
+        
+        .admin-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .admin-stat {
+            background: var(--tg-theme-secondary-bg-color, #fff);
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        
+        .admin-stat-value {
+            font-size: 24px;
+            font-weight: 700;
+        }
+        
+        .admin-stat-label {
+            font-size: 12px;
+            color: var(--tg-theme-hint-color, #6c757d);
+        }
+        
+        .admin-btn {
+            background: #6c757d;
+            margin-top: 8px;
+        }
+        
+        .admin-btn.danger {
+            background: #dc3545;
+        }
+        
+        .user-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .user-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: var(--tg-theme-secondary-bg-color, #fff);
+            border-radius: 12px;
+            margin-bottom: 8px;
+        }
+        
+        @media (max-width: 480px) {
+            body { padding: 12px; }
+            .card { padding: 18px; }
+            .track-name { font-size: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>🎵 Музыкальный бот</h1>
+            
+            <div class="status-bar">
+                <div class="current-state">
+                    <span class="state-indicator state-idle" id="stateIndicator"></span>
+                    <span id="stateText">Готов к работе</span>
+                </div>
+                <span>🎤</span>
+            </div>
+            
+            <div class="tabs" id="tabsContainer">
+                <div class="tab active" onclick="switchTab('search')">🔍 Поиск</div>
+                <div class="tab" onclick="switchTab('favorites')">⭐ Избранное</div>
+                <div class="tab" onclick="switchTab('history')">📜 История</div>
+                <div class="tab" onclick="switchTab('game')">🎮 Угадай трек</div>
+                <div class="tab" id="adminTabBtn" style="display: none;" onclick="switchTab('admin')">👑 Админ</div>
+            </div>
+            
+            <!-- Вкладка поиска -->
+            <div id="searchTab">
+                <div class="search-box">
+                    <input type="text" id="artistInput" class="search-input" placeholder="Название трека, альбома или исполнителя..." autocomplete="off">
+                    <button onclick="searchArtist()" class="search-btn">Найти</button>
+                </div>
+                
+                <div class="section-title" style="margin-top: 20px;">🔥 ПОПУЛЯРНЫЕ</div>
+                <div class="popular-grid" id="popularArtists"></div>
+                
+                <div id="result"></div>
+            </div>
+            
+            <!-- Вкладка избранного -->
+            <div id="favoritesTab" class="hidden">
+                <div id="favoritesList"></div>
+            </div>
+            
+            <!-- Вкладка истории -->
+            <div id="historyTab" class="hidden">
+                <div id="historyList"></div>
+                <button onclick="clearHistory()" style="background: #dc3545;">🗑️ Очистить историю</button>
+            </div>
+            
+            <!-- Вкладка игры -->
+            <div id="gameTab" class="hidden">
+                <div id="gameContent">
+                    <div class="game-card">
+                        <div class="game-score" id="gameScore">🎯 Счёт: 0</div>
+                        <div id="gameQuestion">
+                            <!-- Сюда будет загружаться вопрос -->
+                        </div>
+                        <div id="gameResult"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Вкладка админки -->
+            <div id="adminTab" class="hidden">
+                <div id="adminContent"></div>
+            </div>
+            
+            <div class="user-info">
+                <span>👤 <span id="userName">Загрузка...</span></span>
+                <span>🆔 <span id="userId">—</span></span>
+            </div>
+        </div>
+        
+        <button onclick="closeApp()">❌ Закрыть</button>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+        
+        // ========== ТВОЙ TELEGRAM ID ==========
+        const ADMIN_ID = 1044143048;
+        
+        // ========== ПОЛУЧАЕМ ДАННЫЕ ПОЛЬЗОВАТЕЛЯ ==========
+        const user = tg.initDataUnsafe?.user;
+        const currentUserId = user?.id || null;
+        const isAdmin = (currentUserId === ADMIN_ID);
+        
+        if (isAdmin) {
+            document.getElementById('adminTabBtn').style.display = 'block';
+        }
+        
+        // ========== ПОПУЛЯРНЫЕ ИСПОЛНИТЕЛИ ==========
+        const popularArtistsList = [
+            "Big Baby Tape", "Imagine Dragons", "Кино", "Земфира", 
+            "Miyagi & Эндшпиль", "Моргенштерн", "Rauf & Faik", 
+            "Асия", "Eminem", "Billie Eilish", "The Weeknd"
+        ];
+        
+        // ========== СПИСОК ВСЕХ ИСПОЛНИТЕЛЕЙ (для генерации рандомных вопросов) ==========
+        const allArtists = [
+            // Русские исполнители
+            "Кино", "Земфира", "Асия", "Мари Краймбери", "Моргенштерн", "INSTASAMKA", "Мэйби Бэйби",
+            "Дора", "Лолита", "Face", "Oxxxymiron", "Скриптонит", "T-Fest", "Jah Khalib", "Markul",
+            "Баста", "Noize MC", "Грибы", "Miyagi & Эндшпиль", "Егор Крид", "Монеточка",
+            "Король и Шут", "Сектор Газа", "ДДТ", "Сплин", "Ария", "Гражданская Оборона",
+            "Алиса", "Наутилус Помпилиус", "Чайф", "Би-2", "Аквариум", "Машина времени",
+            "Rauf & Faik", "HammAli & Navai", "Jony", "Zivert", "Artik & Asti", "MOT",
+            "Ваня Дмитриенко", "Niletto", "Клава Кока", "Olga Buzova", "Филипп Киркоров",
+            "Тимати", "ЛСП", "Boulevard Depo", "Кровосток", "Каста", "Centr", "Смоки Мо",
+            "Big Baby Tape", "FEDUK", "Элджей", "MiyaGi", "Эндшпиль", "TumaniYO", "Jughead",
+            
+            // Зарубежные (для разнообразия)
+            "Imagine Dragons", "Billie Eilish", "Eminem", "The Weeknd", "Linkin Park", "Rammstein",
+            "Twenty One Pilots", "Coldplay", "Maroon 5", "Ed Sheeran", "Adele", "Lady Gaga",
+            "Taylor Swift", "Drake", "Kanye West", "Travis Scott", "Post Malone", "Dua Lipa"
+        ];
+        
+        // БОЛЬШАЯ БАЗА ТРЕКОВ (для рандомной генерации)
+        const tracksDatabase = [
+            // Асия
+            { track: "Плачу на техно", artist: "Асия" },
+            { track: "Голос", artist: "Асия" },
+            { track: "Звонок", artist: "Асия" },
+            { track: "Плохая девочка", artist: "Асия" },
+            { track: "Восемь", artist: "Асия" },
+            { track: "Засыпать", artist: "Асия" },
+            
+            // Мари Краймбери
+            { track: "Пряталась в ванной", artist: "Мари Краймбери" },
+            { track: "Улетели", artist: "Мари Краймбери" },
+            { track: "AMORE", artist: "Мари Краймбери" },
+            { track: "Ты меня бесишь", artist: "Мари Краймбери" },
+            { track: "Луна", artist: "Мари Краймбери" },
+            { track: "Ты не такая", artist: "Мари Краймбери" },
+            { track: "Океан", artist: "Мари Краймбери" },
+            
+            // INSTASAMKA
+            { track: "За деньги да", artist: "INSTASAMKA" },
+            { track: "ВИД", artist: "INSTASAMKA" },
+            { track: "Хорошая", artist: "INSTASAMKA" },
+            { track: "Кукла", artist: "INSTASAMKA" },
+            
+            // Мэйби Бэйби
+            { track: "Аскорбинка", artist: "Мэйби Бэйби" },
+            { track: "Любимая школа", artist: "Мэйби Бэйби" },
+            { track: "Тыжмать", artist: "Мэйби Бэйби" },
+            { track: "Пикник", artist: "Мэйби Бэйби" },
+            
+            // Дора
+            { track: "Дорадура", artist: "Дора" },
+            { track: "Втюрилась", artist: "Дора" },
+            { track: "Барбисайз", artist: "Дора" },
+            { track: "Ты не понимаешь", artist: "Дора" },
+            
+            // Моргенштерн
+            { track: "Cadillac", artist: "Моргенштерн" },
+            { track: "ICE", artist: "Моргенштерн" },
+            { track: "12", artist: "Моргенштерн" },
+            { track: "Новая волна", artist: "Моргенштерн" },
+            { track: "Криминал", artist: "Моргенштерн" },
+            
+            // Земфира
+            { track: "Искала", artist: "Земфира" },
+            { track: "Хочешь?", artist: "Земфира" },
+            { track: "Прогулка", artist: "Земфира" },
+            { track: "Бесконечность", artist: "Земфира" },
+            
+            // Кино
+            { track: "Группа крови", artist: "Кино" },
+            { track: "Звезда по имени Солнце", artist: "Кино" },
+            { track: "Хочу перемен", artist: "Кино" },
+            { track: "Пачка сигарет", artist: "Кино" },
+            { track: "Кукушка", artist: "Кино" },
+            
+            // Oxxxymiron
+            { track: "Город под подошвой", artist: "Oxxxymiron" },
+            { track: "Кто убил Марка?", artist: "Oxxxymiron" },
+            { track: "Лондонград", artist: "Oxxxymiron" },
+            { track: "Безумие", artist: "Oxxxymiron" },
+            
+            // Скриптонит
+            { track: "Положение", artist: "Скриптонит" },
+            { track: "VIP", artist: "Скриптонит" },
+            { track: "Сложности", artist: "Скриптонит" },
+            { track: "7 дней", artist: "Скриптонит" },
+            
+            // T-Fest
+            { track: "Улети", artist: "T-Fest" },
+            { track: "Где ты", artist: "T-Fest" },
+            
+            // Jah Khalib
+            { track: "Медина", artist: "Jah Khalib" },
+            { track: "Лейла", artist: "Jah Khalib" },
+            { track: "Джадуа", artist: "Jah Khalib" },
+            
+            // Markul
+            { track: "Стыцамен", artist: "Markul" },
+            { track: "Космос", artist: "Markul" },
+            
+            // Баста
+            { track: "Сансара", artist: "Баста" },
+            { track: "Мама", artist: "Баста" },
+            { track: "Выпускной", artist: "Баста" },
+            
+            // Noize MC
+            { track: "Всё как у людей", artist: "Noize MC" },
+            { track: "На марсе", artist: "Noize MC" },
+            
+            // Егор Крид
+            { track: "Будущий бывший", artist: "Егор Крид" },
+            { track: "Цвет настроения чёрный", artist: "Егор Крид" },
+            
+            // Монеточка
+            { track: "Каждый раз", artist: "Монеточка" },
+            { track: "Стеклянная", artist: "Монеточка" },
+            
+            // Король и Шут
+            { track: "Лесник", artist: "Король и Шут" },
+            { track: "Кукла колдуна", artist: "Король и Шут" },
+            
+            // Rauf & Faik
+            { track: "Детство", artist: "Rauf & Faik" },
+            { track: "Я люблю тебя", artist: "Rauf & Faik" },
+            
+            // Zivert
+            { track: "Life", artist: "Zivert" },
+            { track: "Зелёные волны", artist: "Zivert" },
+            
+            // Niletto
+            { track: "Краш", artist: "Niletto" },
+            { track: "Не вспоминай", artist: "Niletto" },
+            
+            // Клава Кока
+            { track: "Покинула чат", artist: "Клава Кока" },
+            { track: "Ла Ла Ла", artist: "Клава Кока" },
+            
+            // Зарубежные
+            { track: "Believer", artist: "Imagine Dragons" },
+            { track: "Thunder", artist: "Imagine Dragons" },
+            { track: "Bad Guy", artist: "Billie Eilish" },
+            { track: "Lose Yourself", artist: "Eminem" },
+            { track: "Blinding Lights", artist: "The Weeknd" },
+            { track: "Numb", artist: "Linkin Park" },
+            { track: "Du Hast", artist: "Rammstein" },
+            { track: "Stressed Out", artist: "Twenty One Pilots" }
+        ];
+        
+        // ========== ИГРА (РАНДОМНАЯ) ==========
+        let gameQuestions = [];
+        let currentQuestionIndex = 0;
+        let gameScore = 0;
+        let gameActive = true;
+        let gameStats = {
+            gamesPlayed: 0,
+            totalScore: 0,
+            bestScore: 0
+        };
+        
+        // Загрузка статистики игры
+        function loadGameStats() {
+            const saved = localStorage.getItem('music_bot_game_stats');
+            if (saved) {
+                gameStats = JSON.parse(saved);
+            }
+        }
+        
+        function saveGameStats() {
+            localStorage.setItem('music_bot_game_stats', JSON.stringify(gameStats));
+        }
+        
+        // Генерация рандомного вопроса
+        function generateRandomQuestion() {
+            // Берём случайный трек из базы
+            const randomIndex = Math.floor(Math.random() * tracksDatabase.length);
+            const correctTrack = tracksDatabase[randomIndex];
+            const correctArtist = correctTrack.artist;
+            
+            // Генерируем неправильные варианты (3 разных исполнителя, не совпадающих с правильным)
+            let wrongOptions = [];
+            const otherArtists = allArtists.filter(a => a !== correctArtist);
+            
+            // Перемешиваем и берём первых 3
+            for (let i = otherArtists.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [otherArtists[i], otherArtists[j]] = [otherArtists[j], otherArtists[i]];
+            }
+            
+            wrongOptions = otherArtists.slice(0, 3);
+            
+            // Собираем все варианты
+            const allOptions = [correctArtist, ...wrongOptions];
+            
+            // Перемешиваем варианты
+            for (let i = allOptions.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [allOptions[i], allOptions[j]] = [allOptions[j], allOptions[i]];
+            }
+            
+            return {
+                track: correctTrack.track,
+                correct: correctArtist,
+                options: allOptions
+            };
+        }
+        
+        // Начать новую игру (10 вопросов)
+        function startGame() {
+            gameQuestions = [];
+            // Генерируем 10 рандомных вопросов
+            for (let i = 0; i < 10; i++) {
+                gameQuestions.push(generateRandomQuestion());
+            }
+            
+            currentQuestionIndex = 0;
+            gameScore = 0;
+            gameActive = true;
+            
+            updateGameScore();
+            showQuestion();
+        }
+        
+        function updateGameScore() {
+            const scoreDiv = document.getElementById('gameScore');
+            if (scoreDiv) {
+                scoreDiv.innerHTML = `🎯 Счёт: ${gameScore} / ${gameQuestions.length}`;
+            }
+        }
+        
+        function showQuestion() {
+            const gameQuestionDiv = document.getElementById('gameQuestion');
+            
+            if (currentQuestionIndex >= gameQuestions.length) {
+                // Игра закончена
+                const percent = Math.round((gameScore / gameQuestions.length) * 100);
+                gameStats.gamesPlayed++;
+                gameStats.totalScore += gameScore;
+                if (gameScore > gameStats.bestScore) {
+                    gameStats.bestScore = gameScore;
+                }
+                saveGameStats();
+                
+                gameQuestionDiv.innerHTML = `
+                    <div class="game-result">
+                        <h3>🎉 ИГРА ЗАКОНЧЕНА! 🎉</h3>
+                        <div class="game-score" style="font-size: 24px;">${gameScore} / ${gameQuestions.length}</div>
+                        <div>🏆 Процент правильных: ${percent}%</div>
+                        <div>📊 Лучший результат: ${gameStats.bestScore} / ${gameQuestions.length}</div>
+                        <div>🎮 Сыграно игр: ${gameStats.gamesPlayed}</div>
+                        <button onclick="startGame()" style="margin-top: 20px;">🔄 Сыграть ещё раз</button>
+                    </div>
+                `;
+                return;
+            }
+            
+            const question = gameQuestions[currentQuestionIndex];
+            
+            let optionsHtml = '';
+            for (let i = 0; i < question.options.length; i++) {
+                optionsHtml += `<div class="game-option" onclick="checkAnswer('${escapeHtml(question.options[i])}', '${escapeHtml(question.correct)}')">${escapeHtml(question.options[i])}</div>`;
+            }
+            
+            gameQuestionDiv.innerHTML = `
+                <div class="track-name">🎵 "${escapeHtml(question.track)}"</div>
+                <div class="section-title">КТО ИСПОЛНИТЕЛЬ?</div>
+                <div class="game-options" id="gameOptions">
+                    ${optionsHtml}
+                </div>
+            `;
+        }
+        
+        function checkAnswer(selected, correct) {
+            if (!gameActive) return;
+            
+            const optionsDiv = document.getElementById('gameOptions');
+            if (!optionsDiv) return;
+            
+            const options = optionsDiv.querySelectorAll('.game-option');
+            
+            // Блокируем дальнейшие нажатия
+            gameActive = false;
+            
+            // Подсвечиваем правильные и неправильные ответы
+            for (let option of options) {
+                if (option.textContent === correct) {
+                    option.classList.add('correct');
+                }
+                if (option.textContent === selected && selected !== correct) {
+                    option.classList.add('wrong');
+                }
+                option.style.pointerEvents = 'none';
+            }
+            
+            // Обновляем счёт
+            if (selected === correct) {
+                gameScore++;
+                updateGameScore();
+                // Вибрация на телефоне (если поддерживается)
+                if (tg.HapticFeedback) {
+                    tg.HapticFeedback.notificationOccurred('success');
+                }
+            } else {
+                if (tg.HapticFeedback) {
+                    tg.HapticFeedback.notificationOccurred('error');
+                }
+            }
+            
+            // Показываем следующий вопрос через секунду
+            setTimeout(() => {
+                currentQuestionIndex++;
+                gameActive = true;
+                showQuestion();
+            }, 1000);
+        }
+        
+        // ========== ГЛОБАЛЬНАЯ СТАТИСТИКА ==========
+        let globalStats = {
+            totalSearches: 0,
+            totalFavorites: 0,
+            activeUsers: {},
+            popularSearches: {},
+            userActivities: []
+        };
+        
+        function loadGlobalStats() {
+            const saved = localStorage.getItem('music_bot_global_stats');
+            if (saved) {
+                const data = JSON.parse(saved);
+                globalStats.totalSearches = data.totalSearches || 0;
+                globalStats.totalFavorites = data.totalFavorites || 0;
+                globalStats.popularSearches = data.popularSearches || {};
+                globalStats.activeUsers = data.activeUsers || {};
+                globalStats.userActivities = data.userActivities || [];
+            }
+        }
+        
+        function saveGlobalStats() {
+            const toSave = {
+                totalSearches: globalStats.totalSearches,
+                totalFavorites: globalStats.totalFavorites,
+                popularSearches: globalStats.popularSearches,
+                activeUsers: globalStats.activeUsers,
+                userActivities: globalStats.userActivities.slice(0, 50)
+            };
+            localStorage.setItem('music_bot_global_stats', JSON.stringify(toSave));
+        }
+        
+        function addActivity(userId, userName, action, details) {
+            const activity = {
+                userId: userId,
+                userName: userName,
+                action: action,
+                details: details,
+                timestamp: Date.now(),
+                date: new Date().toLocaleString()
+            };
+            globalStats.userActivities.unshift(activity);
+            if (globalStats.userActivities.length > 50) globalStats.userActivities.pop();
+            saveGlobalStats();
+        }
+        
+        function registerActivity() {
+            if (!currentUserId) return;
+            const userName = user?.first_name || user?.username || 'Аноним';
+            if (!globalStats.activeUsers[currentUserId]) {
+                globalStats.activeUsers[currentUserId] = {
+                    name: userName,
+                    firstSeen: Date.now(),
+                    lastSeen: Date.now(),
+                    searches: 0,
+                    favorites: 0
+                };
+                addActivity(currentUserId, userName, '👋 Первое посещение', 'Пользователь зашел в приложение');
+            } else {
+                globalStats.activeUsers[currentUserId].lastSeen = Date.now();
+                globalStats.activeUsers[currentUserId].name = userName;
+            }
+            saveGlobalStats();
+        }
+        
+        function registerSearch(query) {
+            if (!currentUserId) return;
+            globalStats.totalSearches++;
+            globalStats.popularSearches[query] = (globalStats.popularSearches[query] || 0) + 1;
+            if (globalStats.activeUsers[currentUserId]) {
+                globalStats.activeUsers[currentUserId].searches++;
+            }
+            const userName = user?.first_name || user?.username || 'Аноним';
+            addActivity(currentUserId, userName, '🔍 Поиск', `Искал: "${query}"`);
+            saveGlobalStats();
+            registerActivity();
+        }
+        
+        function registerFavorite(artistName) {
+            if (!currentUserId) return;
+            globalStats.totalFavorites++;
+            if (globalStats.activeUsers[currentUserId]) {
+                globalStats.activeUsers[currentUserId].favorites++;
+            }
+            const userName = user?.first_name || user?.username || 'Аноним';
+            addActivity(currentUserId, userName, '⭐ Избранное', `Добавил: ${artistName}`);
+            saveGlobalStats();
+        }
+        
+        // ========== ОТПРАВКА ЗАПРОСОВ В БОТА ==========
+        function getConcertsFromBot(artistName) {
+            tg.sendData(JSON.stringify({
+                action: 'get_concerts',
+                artist: artistName
+            }));
+            tg.showAlert(`🔍 Запрос отправлен! Бот найдёт концерты ${artistName} и напишет сюда.`);
+        }
+        
+        // ========== СОСТОЯНИЯ ==========
+        function setState(newState, message) {
+            const indicator = document.getElementById('stateIndicator');
+            const stateText = document.getElementById('stateText');
+            indicator.className = 'state-indicator';
+            if (newState === 'idle') indicator.classList.add('state-idle');
+            else if (newState === 'searching') indicator.classList.add('state-searching');
+            else if (newState === 'results') indicator.classList.add('state-results');
+            stateText.textContent = message;
+        }
+        
+        // ========== ИЗБРАННОЕ ==========
+        let favorites = [];
+        
+        function loadFavorites() {
+            const saved = localStorage.getItem('music_bot_favorites');
+            if (saved) favorites = JSON.parse(saved);
+            updateFavoritesList();
+        }
+        
+        function saveFavorites() {
+            localStorage.setItem('music_bot_favorites', JSON.stringify(favorites));
+            updateFavoritesList();
+        }
+        
+        function addToFavorites(artistName) {
+            if (!favorites.includes(artistName)) {
+                favorites.push(artistName);
+                saveFavorites();
+                registerFavorite(artistName);
+                tg.showAlert(`⭐ ${artistName} добавлен в избранное`);
+                updateSearchResultButtons(artistName);
+            }
+        }
+        
+        function removeFromFavorites(artistName) {
+            favorites = favorites.filter(a => a !== artistName);
+            saveFavorites();
+            tg.showAlert(`❌ ${artistName} удалён из избранного`);
+            updateSearchResultButtons(artistName);
+        }
+        
+        function isFavorite(artistName) {
+            return favorites.includes(artistName);
+        }
+        
+        function updateFavoritesList() {
+            const favoritesDiv = document.getElementById('favoritesList');
+            if (favorites.length === 0) {
+                favoritesDiv.innerHTML = `<div class="empty-favorites">⭐ Нет избранных исполнителей<br>Добавьте исполнителя через поиск</div>`;
+                return;
+            }
+            favoritesDiv.innerHTML = favorites.map(artist => `
+                <div class="history-item" onclick="searchArtistByName('${escapeHtml(artist).replace(/'/g, "\\'")}')">
+                    <span>🎤 ${escapeHtml(artist)}</span>
+                    <button class="delete-history" onclick="event.stopPropagation(); removeFromFavorites('${escapeHtml(artist).replace(/'/g, "\\'")}')">🗑️</button>
+                </div>
+            `).join('');
+        }
+        
+        function updateSearchResultButtons(artistName) {
+            const favButton = document.getElementById('favorite-btn-dynamic');
+            if (favButton) {
+                const isFav = isFavorite(artistName);
+                if (isFav) {
+                    favButton.innerHTML = '★ Удалить из избранного';
+                    favButton.style.background = '#ffc107';
+                    favButton.style.color = '#000';
+                    favButton.onclick = () => removeFromFavorites(artistName);
+                } else {
+                    favButton.innerHTML = '☆ Добавить в избранное';
+                    favButton.style.background = '#6c757d';
+                    favButton.style.color = 'white';
+                    favButton.onclick = () => addToFavorites(artistName);
+                }
+            }
+        }
+        
+        // ========== ИСТОРИЯ ==========
+        let searchHistory = [];
+        
+        function loadHistory() {
+            const saved = localStorage.getItem('music_bot_history');
+            if (saved) searchHistory = JSON.parse(saved);
+            updateHistoryList();
+        }
+        
+        function saveHistory() {
+            localStorage.setItem('music_bot_history', JSON.stringify(searchHistory));
+            updateHistoryList();
+        }
+        
+        function addToHistory(artistName) {
+            searchHistory = searchHistory.filter(a => a !== artistName);
+            searchHistory.unshift(artistName);
+            searchHistory = searchHistory.slice(0, 15);
+            saveHistory();
+        }
+        
+        function clearHistory() {
+            searchHistory = [];
+            saveHistory();
+            tg.showAlert('История очищена');
+        }
+        
+        function updateHistoryList() {
+            const historyDiv = document.getElementById('historyList');
+            if (searchHistory.length === 0) {
+                historyDiv.innerHTML = `<div class="empty-favorites">📜 История пуста<br>Поищите исполнителей, они появятся здесь</div>`;
+                return;
+            }
+            historyDiv.innerHTML = searchHistory.map(artist => `
+                <div class="history-item" onclick="searchArtistByName('${escapeHtml(artist).replace(/'/g, "\\'")}')">
+                    <span>🎤 ${escapeHtml(artist)}</span>
+                    <button class="delete-history" onclick="event.stopPropagation(); removeFromHistory('${escapeHtml(artist).replace(/'/g, "\\'")}')">🗑️</button>
+                </div>
+            `).join('');
+        }
+        
+        function removeFromHistory(artistName) {
+            searchHistory = searchHistory.filter(a => a !== artistName);
+            saveHistory();
+        }
+        
+        // ========== ПОИСК ==========
+        function searchArtistByName(artistName) {
+            document.getElementById('artistInput').value = artistName;
+            searchArtist();
+        }
+        
+        function searchArtist() {
+            const query = document.getElementById('artistInput').value.trim();
+            if (!query) {
+                tg.showAlert('Введите название трека, альбома или исполнителя');
+                return;
+            }
+            
+            registerSearch(query);
+            addToHistory(query);
+            setState('searching', `🔍 Ищем "${query}"...`);
+            
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div>🔍 Ищем...</div>';
+            
+            setTimeout(() => {
+                const yandexUrl = `https://music.yandex.ru/search?text=${encodeURIComponent(query)}`;
+                const youtubeUrl = `https://music.youtube.com/search?q=${encodeURIComponent(query)}`;
+                const concertsUrl = `https://music.yandex.ru/search?text=${encodeURIComponent(query + ' концерт')}`;
+                const afishaUrl = `https://www.afisha.ru/search/?q=${encodeURIComponent(query)}`;
+                const topTracksUrl = `https://music.yandex.ru/search?text=${encodeURIComponent(query + ' популярные треки')}`;
+                const isFav = isFavorite(query);
+                
+                resultDiv.innerHTML = `
+                    <div class="result-card">
+                        <div class="artist-name">🎤 ${escapeHtml(query)}</div>
+                        
+                        <div class="platform-buttons">
+                            <button id="favorite-btn-dynamic" class="platform-btn" style="${isFav ? 'background: #ffc107; color: #000;' : 'background: #6c757d;'}">
+                                ${isFav ? '★ Удалить из избранного' : '☆ Добавить в избранное'}
+                            </button>
+                        </div>
+                        
+                        <div class="section-title">🎵 МУЗЫКА</div>
+                        <div class="platform-buttons">
+                            <button onclick="openLink('${yandexUrl}')" class="platform-btn yandex-btn">🎵 Яндекс.Музыка</button>
+                            <button onclick="openLink('${youtubeUrl}')" class="platform-btn youtube-btn">▶️ YouTube Music</button>
+                        </div>
+                        
+                        <div class="section-title">🎤 ПОПУЛЯРНЫЕ ТРЕКИ</div>
+                        <div class="platform-buttons">
+                            <button onclick="openLink('${topTracksUrl}')" class="platform-btn" style="background: #9b59b6;">🎵 Топ треки</button>
+                        </div>
+                        
+                        <div class="section-title">🎫 КОНЦЕРТЫ И БИЛЕТЫ</div>
+                        <div class="platform-buttons">
+                            <button onclick="getConcertsFromBot('${escapeHtml(query).replace(/'/g, "\\'")}')" class="platform-btn bot-concert-btn">
+                                🎸 НАЙТИ КОНЦЕРТЫ (через бота)
+                            </button>
+                            <button onclick="openLink('${concertsUrl}')" class="platform-btn concert-btn">🎸 Концерты (Яндекс)</button>
+                            <button onclick="openLink('${afishaUrl}')" class="platform-btn afisha-btn">🎫 Билеты (Афиша)</button>
+                        </div>
+                        
+                        <div class="info-text">
+                            💡 Нажмите на кнопку — бот найдёт всё сам!
+                        </div>
+                    </div>
+                `;
+                setState('results', `🎤 Найден: ${query}`);
+                
+                const favBtn = document.getElementById('favorite-btn-dynamic');
+                if (favBtn) {
+                    if (isFav) favBtn.onclick = () => removeFromFavorites(query);
+                    else favBtn.onclick = () => addToFavorites(query);
+                }
+            }, 300);
+        }
+        
+        // ========== АДМИНКА ==========
+        function showAdminPanel() {
+            if (!isAdmin) return;
+            
+            const adminContent = document.getElementById('adminContent');
+            const sortedSearches = Object.entries(globalStats.popularSearches)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10);
+            const sortedUsers = Object.entries(globalStats.activeUsers)
+                .sort((a, b) => b[1].lastSeen - a[1].lastSeen);
+            
+            function formatTime(timestamp) {
+                if (!timestamp) return 'никогда';
+                const date = new Date(timestamp);
+                return date.toLocaleString();
+            }
+            
+            adminContent.innerHTML = `
+                <div class="admin-panel">
+                    <div class="admin-title">📊 ОБЩАЯ СТАТИСТИКА</div>
+                    <div class="admin-stats">
+                        <div class="admin-stat">
+                            <div class="admin-stat-value">${globalStats.totalSearches}</div>
+                            <div class="admin-stat-label">Всего поисков</div>
+                        </div>
+                        <div class="admin-stat">
+                            <div class="admin-stat-value">${globalStats.totalFavorites}</div>
+                            <div class="admin-stat-label">Добавлений в избранное</div>
+                        </div>
+                        <div class="admin-stat">
+                            <div class="admin-stat-value">${Object.keys(globalStats.activeUsers).length}</div>
+                            <div class="admin-stat-label">Уникальных пользователей</div>
+                        </div>
+                        <div class="admin-stat">
+                            <div class="admin-stat-value">${favorites.length}</div>
+                            <div class="admin-stat-label">Ваших избранных</div>
+                        </div>
+                    </div>
+                    
+                    <div class="admin-title">🔥 ПОПУЛЯРНЫЕ ЗАПРОСЫ</div>
+                    ${sortedSearches.length > 0 ? sortedSearches.map(([query, count]) => `
+                        <div class="history-item" style="justify-content: space-between;">
+                            <span>🎤 ${escapeHtml(query)}</span>
+                            <span style="color: var(--tg-theme-button-color);">${count} раз</span>
+                        </div>
+                    `).join('') : '<div class="info-text">Пока нет данных</div>'}
+                    
+                    <div class="admin-title">👥 ПОЛЬЗОВАТЕЛИ (${sortedUsers.length})</div>
+                    <div class="user-list">
+                        ${sortedUsers.map(([id, data]) => `
+                            <div class="user-item">
+                                <div>
+                                    <div><strong>${escapeHtml(data.name || 'Аноним')}</strong></div>
+                                    <div style="font-size: 11px; color: var(--tg-theme-hint-color);">ID: ${id}</div>
+                                </div>
+                                <div style="text-align: right; font-size: 12px;">
+                                    <div>🔍 ${data.searches || 0}</div>
+                                    <div>⭐ ${data.favorites || 0}</div>
+                                    <div style="font-size: 10px;">${formatTime(data.lastSeen)}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div class="admin-title">📋 ЛЕНТА АКТИВНОСТИ</div>
+                    <div class="user-list" style="max-height: 300px;">
+                        ${globalStats.userActivities.length > 0 ? globalStats.userActivities.map(activity => `
+                            <div class="user-item" style="flex-direction: column; align-items: flex-start;">
+                                <div style="display: flex; justify-content: space-between; width: 100%;">
+                                    <span><strong>${escapeHtml(activity.userName || 'Аноним')}</strong></span>
+                                    <span style="font-size: 11px; color: var(--tg-theme-hint-color);">${activity.date}</span>
+                                </div>
+                                <div style="font-size: 13px; margin-top: 5px;">
+                                    ${activity.action} ${activity.details ? `— ${escapeHtml(activity.details)}` : ''}
+                                </div>
+                            </div>
+                        `).join('') : '<div class="info-text">Пока нет активности</div>'}
+                    </div>
+                    
+                    <div class="admin-title">⚙️ ДЕЙСТВИЯ</div>
+                    <button onclick="clearAllStats()" class="admin-btn danger">🗑️ Сбросить всю статистику</button>
+                </div>
+            `;
+        }
+        
+        function clearAllStats() {
+            if (confirm('Вы уверены? Вся статистика будет удалена безвозвратно!')) {
+                globalStats = {
+                    totalSearches: 0,
+                    totalFavorites: 0,
+                    activeUsers: {},
+                    popularSearches: {},
+                    userActivities: []
+                };
+                saveGlobalStats();
+                showAdminPanel();
+                tg.showAlert('✅ Статистика сброшена');
+            }
+        }
+        
+        function loadPopularArtists() {
+            const popularDiv = document.getElementById('popularArtists');
+            popularDiv.innerHTML = popularArtistsList.map(artist => `
+                <span class="popular-tag" onclick="searchArtistByName('${escapeHtml(artist).replace(/'/g, "\\'")}')">
+                    🎤 ${artist}
+                </span>
+            `).join('');
+        }
+        
+        // ========== ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК ==========
+        function switchTab(tab) {
+            const searchTab = document.getElementById('searchTab');
+            const favoritesTab = document.getElementById('favoritesTab');
+            const historyTab = document.getElementById('historyTab');
+            const gameTab = document.getElementById('gameTab');
+            const adminTab = document.getElementById('adminTab');
+            const tabs = document.querySelectorAll('.tab');
+            
+            tabs.forEach(t => t.classList.remove('active'));
+            
+            if (tab === 'search') {
+                searchTab.classList.remove('hidden');
+                favoritesTab.classList.add('hidden');
+                historyTab.classList.add('hidden');
+                gameTab.classList.add('hidden');
+                adminTab.classList.add('hidden');
+                document.querySelector('.tab:nth-child(1)').classList.add('active');
+                loadPopularArtists();
+                setState('idle', 'Готов к поиску');
+            } else if (tab === 'favorites') {
+                searchTab.classList.add('hidden');
+                favoritesTab.classList.remove('hidden');
+                historyTab.classList.add('hidden');
+                gameTab.classList.add('hidden');
+                adminTab.classList.add('hidden');
+                document.querySelector('.tab:nth-child(2)').classList.add('active');
+                updateFavoritesList();
+                setState('idle', 'Просмотр избранного');
+            } else if (tab === 'history') {
+                searchTab.classList.add('hidden');
+                favoritesTab.classList.add('hidden');
+                historyTab.classList.remove('hidden');
+                gameTab.classList.add('hidden');
+                adminTab.classList.add('hidden');
+                document.querySelector('.tab:nth-child(3)').classList.add('active');
+                updateHistoryList();
+                setState('idle', 'Просмотр истории');
+            } else if (tab === 'game') {
+                searchTab.classList.add('hidden');
+                favoritesTab.classList.add('hidden');
+                historyTab.classList.add('hidden');
+                gameTab.classList.remove('hidden');
+                adminTab.classList.add('hidden');
+                document.querySelector('.tab:nth-child(4)').classList.add('active');
+                startGame();
+                setState('idle', '🎮 Угадай исполнителя');
+            } else if (tab === 'admin' && isAdmin) {
+                searchTab.classList.add('hidden');
+                favoritesTab.classList.add('hidden');
+                historyTab.classList.add('hidden');
+                gameTab.classList.add('hidden');
+                adminTab.classList.remove('hidden');
+                document.getElementById('adminTabBtn').classList.add('active');
+                showAdminPanel();
+                setState('idle', 'Админ-панель');
+            }
+        }
+        
+        function openLink(url) { 
+            tg.openLink(url); 
+        }
+        
+        function closeApp() { 
+            tg.close(); 
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // ========== ИНИЦИАЛИЗАЦИЯ ==========
+        if (user) {
+            document.getElementById('userName').textContent = user.first_name || 'Гость';
+            document.getElementById('userId').textContent = user.id || '—';
+            registerActivity();
+        } else {
+            document.getElementById('userName').textContent = 'Гость';
+        }
+        
+        loadGlobalStats();
+        loadFavorites();
+        loadHistory();
+        loadGameStats();
+        loadPopularArtists();
+        setState('idle', 'Готов к работе');
+        
+        document.getElementById('artistInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') searchArtist();
+        });
+    </script>
+</body>
+</html>
